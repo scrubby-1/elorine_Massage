@@ -122,7 +122,6 @@ export default function BoekenPagina() {
                     selected={datum}
                     onSelect={handleDateSelect}
                     disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                    initialFocus
                   />
                 </div>
               </div>
