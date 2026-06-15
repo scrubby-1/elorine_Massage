@@ -39,10 +39,8 @@ export async function createCalendarEvent(options: CreateCalendarEventOptions) {
       scopes: ['https://www.googleapis.com/auth/calendar'],
     })
 
-    const authClient = await auth.getClient()
-
     // Stap 4: Maak de calendar client
-    const calendar = google.calendar({ version: 'v3', auth: authClient })
+    const calendar = google.calendar({ version: 'v3', auth: auth as any })
 
     // Stap 5: Combineer datum en tijd
     const [hours, minutes] = options.startTime.slice(0, 5).split(':').map(Number)
