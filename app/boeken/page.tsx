@@ -7,7 +7,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Calendar } from '@/components/ui/calendar'
+import Image from 'next/image'
+import Link from 'next/link'
 import { createBooking, getAvailability } from '@/lib/actions'
+import { formatTijd, naarDatumString } from '@/lib/dates'
 
 interface AvailabilitySlot {
   id: string
@@ -15,10 +18,6 @@ interface AvailabilitySlot {
   start_time: string
   end_time: string
   status: 'available' | 'pending' | 'booked'
-}
-
-function formatTijd(tijdStr: string) {
-  return tijdStr.slice(0, 5)
 }
 
 export default function BoekenPagina() {
@@ -38,10 +37,13 @@ export default function BoekenPagina() {
     
     if (newDate) {
       setSlotsLoading(true)
-      const dateStr = newDate.toISOString().split('T')[0]
-      const res = await getAvailability(dateStr)
+      setError(null)
+      const res = await getAvailability(naarDatumString(newDate))
       if (res.success) {
         setAvailableSlots(res.data || [])
+      } else {
+        setAvailableSlots([])
+        setError(res.error || 'Kon de beschikbare tijden niet ophalen')
       }
       setSlotsLoading(false)
     } else {
@@ -65,6 +67,13 @@ export default function BoekenPagina() {
     if (result.success) {
       setSuccess(true)
     } else {
+      // Tijdslot mogelijk net bezet: lijst met tijden vernieuwen.
+      if (datum) {
+        const res = await getAvailability(naarDatumString(datum))
+        if (res.success) setAvailableSlots(res.data || [])
+      }
+      setStarttijd(undefined)
+      setAvailabilityId(undefined)
       setError(result.error || 'Er is iets misgegaan, probeer opnieuw.')
     }
   }
@@ -104,6 +113,9 @@ export default function BoekenPagina() {
   return (
     <div className="min-h-screen bg-stone-50 py-12">
       <div className="mx-auto max-w-2xl px-6">
+        <Link href="/" className="block w-fit mx-auto mb-6">
+          <Image src="/logo.png" alt="Elorine Massage" width={140} height={140} priority />
+        </Link>
         <Card>
           <CardHeader className="text-center">
             <CardTitle className="text-2xl md:text-3xl font-serif text-stone-800">Maak een afspraak</CardTitle>
@@ -165,7 +177,7 @@ export default function BoekenPagina() {
               <input
                 type="hidden"
                 name="datum"
-                value={datum ? datum.toISOString().split('T')[0] : ''}
+                value={datum ? naarDatumString(datum) : ''}
               />
 
               {/* Naam */}

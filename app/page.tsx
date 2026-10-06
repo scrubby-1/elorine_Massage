@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import Link from 'next/link'
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,16 +10,9 @@ export default function Home() {
       <nav className="border-b border-stone-200 bg-white/80 backdrop-blur-sm">
         <div className="mx-auto max-w-6xl px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="h-10 w-10 rounded-full bg-emerald-200 flex items-center justify-center">
-                <svg className="h-6 w-6 text-emerald-700" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 3c-2 2-3 4-3 7c0 5 3 9 3 9s3-4 3-9c0-3-1-5-3-7z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7c-1.5 1.5-2.5 3.5-2.5 6c0 4 2.5 7 2.5 7s2.5-3 2.5-7c0-2.5-1-4.5-2.5-6z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7c1.5 1.5 2.5 3.5 2.5 6c0 4-2.5 7-2.5 7s-2.5-3-2.5-7c0-2.5 1-4.5 2.5-6z" />
-                </svg>
-              </div>
-              <span className="text-2xl font-serif text-stone-700">Elorine</span>
-            </div>
+            <Link href="/" className="flex items-center">
+              <Image src="/logo.png" alt="Elorine Massage" width={72} height={72} priority />
+            </Link>
             <div className="hidden md:flex items-center gap-8">
               <a href="#diensten" className="text-stone-600 hover:text-emerald-700 transition-colors">Diensten</a>
               <a href="#over" className="text-stone-600 hover:text-emerald-700 transition-colors">Over mij</a>
@@ -208,15 +202,8 @@ export default function Home() {
         <div className="mx-auto max-w-6xl px-6">
           <div className="grid gap-8 md:grid-cols-3">
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="h-10 w-10 rounded-full bg-emerald-200 flex items-center justify-center">
-                  <svg className="h-6 w-6 text-emerald-700" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 3c-2 2-3 4-3 7c0 5 3 9 3 9s3-4 3-9c0-3-1-5-3-7z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7c-1.5 1.5-2.5 3.5-2.5 6c0 4 2.5 7 2.5 7s2.5-3 2.5-7c0-2.5-1-4.5-2.5-6z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7c1.5 1.5 2.5 3.5 2.5 6c0 4-2.5 7-2.5 7s-2.5-3-2.5-7c0-2.5 1-4.5 2.5-6z" />
-                  </svg>
-                </div>
-                <span className="text-2xl font-serif text-white">Elorine</span>
+              <div className="mb-4 inline-flex rounded-full bg-stone-50 p-2">
+                <Image src="/logo.png" alt="Elorine Massage" width={96} height={96} />
               </div>
               <p className="text-stone-400">
                 Professionele massagebehandelingen in een rustige, warme omgeving.
@@ -240,7 +227,7 @@ export default function Home() {
             </div>
           </div>
           <div className="mt-12 pt-8 border-t border-stone-700 text-center text-stone-500">
-            © 2024 Elorine. Alle rechten voorbehouden.
+            © {new Date().getFullYear()} Elorine. Alle rechten voorbehouden.
           </div>
         </div>
       </footer>
