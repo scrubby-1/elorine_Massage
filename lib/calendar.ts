@@ -1,77 +1,51 @@
 import { google } from 'googleapis'
+import { TIJDZONE } from './dates'
 
 interface CreateCalendarEventOptions {
   name: string
-  date: string
-  startTime: string
+  date: string // "JJJJ-MM-DD"
+  startTime: string // "UU:MM:SS"
+  endTime: string // "UU:MM:SS"
+}
+
+function tijdMetSeconden(tijd: string) {
+  return tijd.length === 5 ? `${tijd}:00` : tijd.slice(0, 8)
 }
 
 export async function createCalendarEvent(options: CreateCalendarEventOptions) {
   try {
-    // Stap 1: Controleer of alle benodigde environment variables er zijn
-    console.log('=== Google Calendar Debug Info ===')
-    console.log('GOOGLE_CLIENT_EMAIL bestaat:', !!process.env.GOOGLE_CLIENT_EMAIL)
-    console.log('Eerste 20 tekens ruwe GOOGLE_PRIVATE_KEY:', process.env.GOOGLE_PRIVATE_KEY?.substring(0, 20))
-    console.log('GMAIL_USER:', process.env.GMAIL_USER)
+    const clientEmail = process.env.GOOGLE_CLIENT_EMAIL
+    const calendarId = process.env.GOOGLE_CALENDAR_ID || process.env.GMAIL_USER
+    let privateKey = process.env.GOOGLE_PRIVATE_KEY
 
-    if (!process.env.GOOGLE_CLIENT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY || !process.env.GMAIL_USER) {
-      console.log('Google Calendar credentials niet ingesteld, kalender afspraak wordt overgeslagen')
+    if (!clientEmail || !privateKey || !calendarId) {
+      console.log('Google Agenda niet ingesteld, afspraak in agenda wordt overgeslagen')
       return { success: false, error: 'Credentials niet ingesteld' }
     }
 
-    // Stap 2: Schoon de private key op - verwijder eerst eventuele quotes, daarna vervang \n
-    let privateKey = process.env.GOOGLE_PRIVATE_KEY
-    if (privateKey) {
-      // Verwijder aanhalingstekens aan begin en eind
-      privateKey = privateKey.replace(/^"|"$/g, '')
-      // Vervang dubbele backslashes + n door echte newlines
-      privateKey = privateKey.replace(/\\n/g, '\n')
-    }
+    // Aanhalingstekens rond de sleutel weghalen en "\n" omzetten naar echte regeleinden.
+    privateKey = privateKey.replace(/^"|"$/g, '').replace(/\\n/g, '\n')
 
-    console.log('Eerste 20 tekens OPGESCHOONDE privateKey:', privateKey?.substring(0, 20))
-
-    // Stap 3: Gebruik GoogleAuth in plaats van JWT
     const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: privateKey,
-      },
+      credentials: { client_email: clientEmail, private_key: privateKey },
       scopes: ['https://www.googleapis.com/auth/calendar'],
     })
-
-    // Stap 4: Maak de calendar client
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const calendar = google.calendar({ version: 'v3', auth: auth as any })
 
-    // Stap 5: Combineer datum en tijd
-    const [hours, minutes] = options.startTime.slice(0, 5).split(':').map(Number)
-    const startDateTime = new Date(options.date)
-    startDateTime.setHours(hours, minutes, 0, 0)
-
-    const endDateTime = new Date(startDateTime)
-    endDateTime.setHours(startDateTime.getHours() + 1)
-
-    const event = {
-      summary: `Massage: ${options.name}`,
-      start: {
-        dateTime: startDateTime.toISOString(),
-        timeZone: 'Europe/Amsterdam'
-      },
-      end: {
-        dateTime: endDateTime.toISOString(),
-        timeZone: 'Europe/Amsterdam'
-      }
-    }
-
-    // Stap 6: Maak de afspraak
+    // Lokale tijd zonder "Z" + tijdzone: Google rekent zelf om (zomer- en wintertijd).
     const response = await calendar.events.insert({
-      calendarId: process.env.GMAIL_USER,
-      requestBody: event
+      calendarId,
+      requestBody: {
+        summary: `Massage: ${options.name}`,
+        start: { dateTime: `${options.date}T${tijdMetSeconden(options.startTime)}`, timeZone: TIJDZONE },
+        end: { dateTime: `${options.date}T${tijdMetSeconden(options.endTime)}`, timeZone: TIJDZONE },
+      },
     })
 
-    console.log('Kalender afspraak aangemaakt:', response.data.htmlLink)
     return { success: true, data: response.data }
   } catch (error) {
-    console.error('Fout bij aanmaken kalender afspraak:', error)
+    console.error('Fout bij aanmaken agenda-afspraak:', error)
     return { success: false, error }
   }
 }

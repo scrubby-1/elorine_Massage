@@ -7,7 +7,18 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { getBookings, updateBookingStatus, createAvailability, deleteAvailability, getAllFutureAvailability } from '@/lib/actions'
+import Image from 'next/image'
+import {
+  getBookings,
+  updateBookingStatus,
+  createAvailability,
+  deleteAvailability,
+  getAllFutureAvailability,
+  login,
+  logout,
+  checkLogin,
+} from '@/lib/actions'
+import { formatDatumNL, formatTijd } from '@/lib/dates'
 
 interface Booking {
   id: string
@@ -46,20 +57,6 @@ function getStatusBadge(status: string) {
   }
 }
 
-function formatDatumNL(datumStr: string) {
-  const datum = new Date(datumStr)
-  return datum.toLocaleDateString('nl-NL', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  })
-}
-
-function formatTijd(tijdStr: string) {
-  return tijdStr.slice(0, 5)
-}
-
 export default function AdminPagina() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [password, setPassword] = useState('')
@@ -67,13 +64,18 @@ export default function AdminPagina() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [availability, setAvailability] = useState<AvailabilitySlot[]>([])
   const [loading, setLoading] = useState(false)
+  const [checking, setChecking] = useState(true)
+  const [loggingIn, setLoggingIn] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   useEffect(() => {
-    const savedPassword = localStorage.getItem('admin_password')
-    if (savedPassword === process.env.NEXT_PUBLIC_ADMIN_PASSWORD) {
-      setIsLoggedIn(true)
-      fetchData()
-    }
+    checkLogin().then(({ loggedIn }) => {
+      setChecking(false)
+      if (loggedIn) {
+        setIsLoggedIn(true)
+        fetchData()
+      }
+    })
   }, [])
 
   async function fetchData() {
@@ -83,46 +85,81 @@ export default function AdminPagina() {
       getAllFutureAvailability()
     ])
 
+    // Sessie verlopen? Dan terug naar het loginscherm.
+    if (!bookingsRes.success && !availabilityRes.success) {
+      const stillLoggedIn = (await checkLogin()).loggedIn
+      if (!stillLoggedIn) {
+        setIsLoggedIn(false)
+        setLoading(false)
+        return
+      }
+    }
+
     if (bookingsRes.success) setBookings(bookingsRes.data || [])
     if (availabilityRes.success) setAvailability(availabilityRes.data || [])
+    const fout = !bookingsRes.success ? bookingsRes.error : !availabilityRes.success ? availabilityRes.error : null
+    setActionError(fout || null)
     setLoading(false)
   }
 
-  function handleLogin(e: React.FormEvent) {
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
-    if (password === process.env.NEXT_PUBLIC_ADMIN_PASSWORD) {
-      localStorage.setItem('admin_password', password)
+    setError(null)
+    setLoggingIn(true)
+    const res = await login(password)
+    setLoggingIn(false)
+    if (res.success) {
+      setPassword('')
       setIsLoggedIn(true)
       fetchData()
     } else {
-      setError('Onjuist wachtwoord')
+      setError(res.error || 'Onjuist wachtwoord')
     }
   }
 
-  function handleLogout() {
-    localStorage.removeItem('admin_password')
+  async function handleLogout() {
+    await logout()
     setIsLoggedIn(false)
     setPassword('')
+    setBookings([])
+    setAvailability([])
   }
 
   async function handleUpdateBookingStatus(id: string, status: 'approved' | 'rejected') {
-    await updateBookingStatus(id, status)
+    setActionError(null)
+    const res = await updateBookingStatus(id, status)
+    if (!res.success) setActionError(res.error || 'Er is iets misgegaan')
     await fetchData()
   }
 
   async function handleCreateAvailability(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    const formData = new FormData(e.currentTarget)
-    await createAvailability(formData)
-    e.currentTarget.reset()
+    setActionError(null)
+    const form = e.currentTarget
+    const res = await createAvailability(new FormData(form))
+    if (res.success) {
+      form.reset()
+    } else {
+      setActionError(res.error || 'Er is iets misgegaan')
+    }
     await fetchData()
   }
 
   async function handleDeleteAvailability(id: string) {
     if (confirm('Weet je zeker dat je dit tijdslot wilt verwijderen?')) {
-      await deleteAvailability(id)
+      setActionError(null)
+      const res = await deleteAvailability(id)
+      if (!res.success) setActionError(res.error || 'Er is iets misgegaan')
       await fetchData()
     }
+  }
+
+  if (checking) {
+    return (
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center text-stone-500">
+        Laden...
+      </div>
+    )
   }
 
   if (!isLoggedIn) {
@@ -130,6 +167,7 @@ export default function AdminPagina() {
       <div className="min-h-screen bg-stone-50 flex items-center justify-center py-12 px-6">
         <Card className="max-w-md w-full">
           <CardHeader>
+            <Image src="/logo.png" alt="Elorine Massage" width={120} height={120} className="mx-auto mb-2" priority />
             <CardTitle className="text-2xl">Beheer Dashboard</CardTitle>
             <CardDescription>Log in om boekingen te beheren</CardDescription>
           </CardHeader>
@@ -149,8 +187,8 @@ export default function AdminPagina() {
               {error && (
                 <div className="text-red-600 text-sm">{error}</div>
               )}
-              <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700">
-                Inloggen
+              <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700" disabled={loggingIn}>
+                {loggingIn ? 'Bezig...' : 'Inloggen'}
               </Button>
             </form>
           </CardContent>
@@ -163,13 +201,18 @@ export default function AdminPagina() {
     <div className="min-h-screen bg-stone-50 py-12 px-6">
       <div className="mx-auto max-w-6xl">
         <div className="flex items-center justify-between mb-8">
-          <div>
+          <div className="flex items-center gap-4">
+            <Image src="/logo.png" alt="Elorine Massage" width={64} height={64} />
             <h1 className="text-3xl font-serif text-stone-800">Beheer Dashboard</h1>
           </div>
           <Button variant="outline" onClick={handleLogout}>
             Uitloggen
           </Button>
         </div>
+
+        {actionError && (
+          <div className="mb-6 bg-red-50 text-red-600 p-3 rounded-md text-sm">{actionError}</div>
+        )}
 
         <div className="grid grid-cols-1 gap-8">
           {/* Beschikbaarheid Formulier */}
