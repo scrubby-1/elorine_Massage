@@ -1,0 +1,22 @@
+name: tijdelijke-buildtest
+on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --no-audit --no-fund
+      - name: TypeScript
+        run: npx tsc --noEmit --pretty false
+        continue-on-error: true
+      - name: Build
+        run: npx next build 2>&1 | tee build.log
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+      - name: Fouten als annotaties
+        if: always()
+        run: |
+          grep -nE "error|Error|rror:|Type error|Failed" build.log | head -40 | while IFS= read -r l; do echo "::error::$l"; done || true
