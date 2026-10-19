@@ -4,7 +4,15 @@ import { revalidatePath } from 'next/cache'
 import { headers } from 'next/headers'
 import { supabase } from '@/lib/supabase'
 import { sendMail } from './mail'
-import { createCalendarEvent } from './calendar'
+import { createCalendarEvent, deleteCalendarEvent } from './calendar'
+import {
+  mailAanvraagOntvangen,
+  mailBevestigd,
+  mailGeannuleerd,
+  mailGeweigerd,
+  mailNieuweAanvraag,
+} from './emails'
+import { createHash } from 'crypto'
 import {
   adminEmail,
   claimResetToken,
@@ -22,24 +30,18 @@ import {
 } from './auth'
 import {
   eenUurLater,
-  formatDatumNL,
-  formatTijd,
   isGeldigeDatum,
   isGeldigeTijd,
+  isToekomstig,
+  naarMinuten,
+  plusDagen,
   vandaagInBelgie,
+  vanMinuten,
+  weekdag,
 } from './dates'
 
 function foutmelding(error: unknown) {
   return error instanceof Error ? error.message : 'Er is iets misgegaan, probeer opnieuw.'
-}
-
-function escapeHtml(tekst: string) {
-  return tekst
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
 }
 
 // ==========================================
@@ -164,17 +166,46 @@ export async function stelNieuwWachtwoordIn(token: string, nieuw: string, herhal
 // BOOKINGS
 // ==========================================
 
+const MAX_OPEN_AANVRAGEN_PER_EMAIL = 2
+const MAX_AANVRAGEN_PER_IP_PER_DAG = 5
+const MIN_INVULTIJD_MS = 3000
+
+async function ipHash() {
+  const h = await headers()
+  const ip = (h.get('x-forwarded-for') || h.get('x-real-ip') || '').split(',')[0].trim()
+  if (!ip) return null
+  const zout = process.env.ADMIN_SESSION_SECRET || 'elorine'
+  return createHash('sha256').update(`${zout}:${ip}`).digest('hex')
+}
+
 export async function createBooking(formData: FormData) {
   const naam_klant = String(formData.get('naam_klant') ?? '').trim()
-  const email_klant = String(formData.get('email_klant') ?? '').trim()
+  const email_klant = String(formData.get('email_klant') ?? '').trim().toLowerCase()
   const telefoon_klant = String(formData.get('telefoon_klant') ?? '').trim()
+  const opmerking = String(formData.get('opmerking') ?? '').trim()
   const availability_id = String(formData.get('availability_id') ?? '').trim()
+  const privacy = formData.get('privacy') === 'on' || formData.get('privacy') === 'true'
+
+  // Spamfilter: dit veld is onzichtbaar voor mensen, alleen bots vullen het in.
+  const valstrik = String(formData.get('website') ?? '')
+  // Spamfilter: een mens heeft meer dan enkele seconden nodig om het formulier in te vullen.
+  const gestart = Number(formData.get('ts') ?? 0)
+  if (valstrik || !gestart || Date.now() - gestart < MIN_INVULTIJD_MS) {
+    // Doen alsof het gelukt is, zodat bots niets leren.
+    return { success: true, data: null }
+  }
 
   if (!naam_klant || !email_klant || !telefoon_klant || !availability_id) {
-    return { success: false, error: 'Vul alle velden in' }
+    return { success: false, error: 'Vul alle verplichte velden in' }
+  }
+  if (!privacy) {
+    return { success: false, error: 'Ga akkoord met de privacyverklaring om verder te gaan' }
   }
   if (naam_klant.length > 100 || email_klant.length > 200 || telefoon_klant.length > 30) {
     return { success: false, error: 'Een van de velden is te lang' }
+  }
+  if (opmerking.length > 500) {
+    return { success: false, error: 'De opmerking mag maximaal 500 tekens lang zijn' }
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email_klant)) {
     return { success: false, error: 'Vul een geldig e-mailadres in' }
@@ -184,6 +215,31 @@ export async function createBooking(formData: FormData) {
   }
 
   try {
+    // Spamfilter: maximaal enkele openstaande aanvragen per e-mailadres en per internetaansluiting.
+    const { count: openPerEmail } = await supabase
+      .from('bookings')
+      .select('id', { count: 'exact', head: true })
+      .eq('email_klant', email_klant)
+      .eq('status', 'pending')
+    if ((openPerEmail ?? 0) >= MAX_OPEN_AANVRAGEN_PER_EMAIL) {
+      return {
+        success: false,
+        error: 'Je hebt al een aanvraag lopen. Wacht op onze bevestiging voor je een nieuwe aanvraag doet.',
+      }
+    }
+
+    const ip_hash = await ipHash()
+    if (ip_hash) {
+      const { count: perIp } = await supabase
+        .from('bookings')
+        .select('id', { count: 'exact', head: true })
+        .eq('ip_hash', ip_hash)
+        .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+      if ((perIp ?? 0) >= MAX_AANVRAGEN_PER_IP_PER_DAG) {
+        return { success: false, error: 'Te veel aanvragen. Probeer het later opnieuw of neem telefonisch contact op.' }
+      }
+    }
+
     // Zet het tijdslot alleen op 'pending' als het nog 'available' is.
     // Als iemand anders het net nam, wordt er geen rij aangepast en krijgen we niets terug.
     const { data: slot, error: availError } = await supabase
@@ -202,23 +258,26 @@ export async function createBooking(formData: FormData) {
         error: 'Dit tijdslot is net ingenomen door iemand anders. Kies een ander tijdstip.',
       }
     }
+    if (!isToekomstig(slot.date, slot.start_time)) {
+      await supabase.from('availability').update({ status: 'available' }).eq('id', slot.id)
+      return { success: false, error: 'Dit tijdstip is al voorbij. Kies een ander tijdstip.' }
+    }
 
     // Datum en tijd komen uit het tijdslot zelf, niet uit wat de browser doorstuurt.
-    const { data, error } = await supabase
-      .from('bookings')
-      .insert([
-        {
-          naam_klant,
-          email_klant,
-          telefoon_klant,
-          datum: slot.date,
-          starttijd: slot.start_time,
-          eindtijd: slot.end_time,
-          availability_id: slot.id,
-          status: 'pending',
-        },
-      ])
-      .select('id')
+    const boeking = {
+      naam_klant,
+      email_klant,
+      telefoon_klant,
+      opmerking: opmerking || null,
+      datum: slot.date,
+      starttijd: slot.start_time,
+      eindtijd: slot.end_time,
+      availability_id: slot.id,
+      status: 'pending',
+      privacy_akkoord_op: new Date().toISOString(),
+      ip_hash,
+    }
+    const { data, error } = await supabase.from('bookings').insert([boeking]).select('id')
 
     if (error) {
       // Boeking mislukt: tijdslot terug vrijgeven.
@@ -226,21 +285,51 @@ export async function createBooking(formData: FormData) {
       throw error
     }
 
-    return { success: true, data }
+    // Meldingen: aan Elorine en een ontvangstbevestiging aan de klant.
+    const adres = await websiteAdres()
+    const naarAdmin = adminEmail()
+    const mails: Promise<unknown>[] = [sendMail({ to: email_klant, ...mailAanvraagOntvangen(boeking) })]
+    if (naarAdmin) mails.push(sendMail({ to: naarAdmin, ...mailNieuweAanvraag(boeking, `${adres}/admin`) }))
+    await Promise.allSettled(mails)
+
+    return {
+      success: true,
+      data,
+      samenvatting: { datum: slot.date, starttijd: slot.start_time, eindtijd: slot.end_time },
+    }
   } catch (error) {
     console.error('Fout bij aanmaken boeking:', error)
     return { success: false, error: 'Er is iets misgegaan, probeer opnieuw.' }
   }
 }
 
+// Aanvragen waarvan het moment voorbij is zonder antwoord: op 'verlopen' zetten.
+async function verloopOudeAanvragen() {
+  const vandaag = vandaagInBelgie()
+  const { data } = await supabase
+    .from('bookings')
+    .select('id, datum, starttijd, availability_id')
+    .eq('status', 'pending')
+    .lte('datum', vandaag)
+  const verlopen = (data || []).filter((b) => !isToekomstig(b.datum, b.starttijd))
+  if (verlopen.length === 0) return
+  await supabase
+    .from('bookings')
+    .update({ status: 'expired' })
+    .in('id', verlopen.map((b) => b.id))
+    .eq('status', 'pending')
+}
+
 export async function getBookings() {
   try {
     await vereisAdmin()
+    await verloopOudeAanvragen()
     const { data, error } = await supabase
       .from('bookings')
       .select('*')
-      .order('status', { ascending: false })
-      .order('created_at', { ascending: false })
+      .gte('datum', plusDagen(vandaagInBelgie(), -180))
+      .order('datum', { ascending: true })
+      .order('starttijd', { ascending: true })
 
     if (error) throw error
     return { success: true, data }
@@ -275,28 +364,60 @@ export async function updateBookingStatus(id: string, status: 'approved' | 'reje
         .eq('id', booking.availability_id)
     }
 
+    // Wachten tot mail en agenda klaar zijn: op Vercel stopt de functie
+    // anders zodra het antwoord verstuurd is.
     if (status === 'approved') {
-      // Wachten tot mail en agenda klaar zijn: op Vercel stopt de functie
-      // anders zodra het antwoord verstuurd is.
-      const naam = escapeHtml(booking.naam_klant)
-      const datum = formatDatumNL(booking.datum)
-      const tijd = `${formatTijd(booking.starttijd)} - ${formatTijd(booking.eindtijd)}`
-
-      await Promise.allSettled([
-        sendMail({
-          to: booking.email_klant,
-          subject: 'Bevestiging van je massage-afspraak',
-          text: `Beste ${booking.naam_klant},\n\nBedankt voor je aanvraag! We hebben je afspraak bevestigd.\n\nDetails:\nDatum: ${datum}\nTijd: ${tijd}\n\nWe kijken ernaar uit om je te verwelkomen!\n\nMet vriendelijke groet,\nElorine`,
-          html: `<p>Beste ${naam},</p><p>Bedankt voor je aanvraag! We hebben je afspraak bevestigd.</p><h3>Details:</h3><ul><li>Datum: ${datum}</li><li>Tijd: ${tijd}</li></ul><p>We kijken ernaar uit om je te verwelkomen!</p><p>Met vriendelijke groet,<br />Elorine</p>`,
-        }),
+      const [, agenda] = await Promise.allSettled([
+        sendMail({ to: booking.email_klant, ...mailBevestigd(booking) }),
         createCalendarEvent({
           name: booking.naam_klant,
+          email: booking.email_klant,
+          phone: booking.telefoon_klant,
+          note: booking.opmerking,
           date: booking.datum,
           startTime: booking.starttijd,
           endTime: booking.eindtijd,
         }),
       ])
+      if (agenda.status === 'fulfilled' && agenda.value.success && agenda.value.eventId) {
+        await supabase.from('bookings').update({ calendar_event_id: agenda.value.eventId }).eq('id', id)
+      }
+    } else {
+      await sendMail({ to: booking.email_klant, ...mailGeweigerd(booking, `${await websiteAdres()}/boeken`) })
     }
+
+    revalidatePath('/admin')
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: foutmelding(error) }
+  }
+}
+
+// Een bevestigde afspraak annuleren (bv. bij ziekte).
+export async function cancelBooking(id: string) {
+  try {
+    await vereisAdmin()
+    const { data: booking, error } = await supabase
+      .from('bookings')
+      .update({ status: 'cancelled' })
+      .eq('id', id)
+      .eq('status', 'approved')
+      .select('*')
+      .maybeSingle()
+
+    if (error) throw error
+    if (!booking) throw new Error('Deze afspraak kan niet (meer) geannuleerd worden.')
+
+    // Tijdslot weer vrijgeven als het nog in de toekomst ligt.
+    if (booking.availability_id && isToekomstig(booking.datum, booking.starttijd)) {
+      await supabase.from('availability').update({ status: 'available' }).eq('id', booking.availability_id)
+    }
+
+    const taken: Promise<unknown>[] = [
+      sendMail({ to: booking.email_klant, ...mailGeannuleerd(booking, `${await websiteAdres()}/boeken`) }),
+    ]
+    if (booking.calendar_event_id) taken.push(deleteCalendarEvent(booking.calendar_event_id))
+    await Promise.allSettled(taken)
 
     revalidatePath('/admin')
     return { success: true }
@@ -309,6 +430,31 @@ export async function updateBookingStatus(id: string, status: 'approved' | 'reje
 // AVAILABILITY
 // ==========================================
 
+const SLOT_DUUR_MINUTEN = 60
+
+type Interval = { start: number; eind: number }
+
+function overlapt(a: Interval, lijst: Interval[]) {
+  return lijst.some((b) => a.start < b.eind && b.start < a.eind)
+}
+
+// Bestaande tijdsloten (alle statussen) per datum, in minuten.
+async function bestaandeSloten(van: string, tot: string) {
+  const { data, error } = await supabase
+    .from('availability')
+    .select('date, start_time, end_time')
+    .gte('date', van)
+    .lte('date', tot)
+  if (error) throw error
+  const perDag = new Map<string, Interval[]>()
+  for (const s of data || []) {
+    const lijst = perDag.get(s.date) || []
+    lijst.push({ start: naarMinuten(s.start_time), eind: naarMinuten(s.end_time) })
+    perDag.set(s.date, lijst)
+  }
+  return perDag
+}
+
 export async function createAvailability(formData: FormData) {
   try {
     await vereisAdmin()
@@ -318,12 +464,17 @@ export async function createAvailability(formData: FormData) {
     if (!isGeldigeDatum(date) || !isGeldigeTijd(startTime)) {
       return { success: false, error: 'Vul een geldige datum en tijd in' }
     }
-    if (date < vandaagInBelgie()) {
-      return { success: false, error: 'Deze datum ligt in het verleden' }
+    if (!isToekomstig(date, startTime)) {
+      return { success: false, error: 'Dit moment ligt in het verleden' }
     }
     const endTime = eenUurLater(startTime)
     if (!endTime) {
       return { success: false, error: 'Een tijdslot moet voor middernacht eindigen' }
+    }
+
+    const bestaand = (await bestaandeSloten(date, date)).get(date) || []
+    if (overlapt({ start: naarMinuten(startTime), eind: naarMinuten(endTime) }, bestaand)) {
+      return { success: false, error: 'Dit tijdslot overlapt met een bestaand tijdslot op die dag' }
     }
 
     const { data, error } = await supabase
@@ -335,6 +486,72 @@ export async function createAvailability(formData: FormData) {
 
     revalidatePath('/admin')
     return { success: true, data }
+  } catch (error) {
+    return { success: false, error: foutmelding(error) }
+  }
+}
+
+// Meerdere tijdsloten in één keer: bv. elke dinsdag en donderdag van 9 tot 17 uur.
+export async function createAvailabilitySeries(formData: FormData) {
+  try {
+    await vereisAdmin()
+    const van = String(formData.get('van') ?? '')
+    const tot = String(formData.get('tot') ?? '')
+    const begin = String(formData.get('begin') ?? '').slice(0, 5)
+    const einde = String(formData.get('einde') ?? '').slice(0, 5)
+    const dagen = new Set(formData.getAll('weekdag').map((d) => Number(d)))
+
+    if (!isGeldigeDatum(van) || !isGeldigeDatum(tot) || tot < van) {
+      return { success: false, error: 'Kies een geldige periode' }
+    }
+    if (tot > plusDagen(van, 92)) {
+      return { success: false, error: 'Kies een periode van maximaal 3 maanden' }
+    }
+    if (!isGeldigeTijd(begin) || !isGeldigeTijd(einde)) {
+      return { success: false, error: 'Kies een geldig begin- en einduur' }
+    }
+    if (naarMinuten(einde) - naarMinuten(begin) < SLOT_DUUR_MINUTEN) {
+      return { success: false, error: 'Tussen begin- en einduur moet minstens een uur zitten' }
+    }
+    if (dagen.size === 0) {
+      return { success: false, error: 'Kies minstens één weekdag' }
+    }
+
+    const bestaand = await bestaandeSloten(van, tot)
+    const nieuw: { date: string; start_time: string; end_time: string; status: string }[] = []
+    let overgeslagen = 0
+
+    for (let d = van; d <= tot; d = plusDagen(d, 1)) {
+      if (!dagen.has(weekdag(d))) continue
+      const opDag = bestaand.get(d) || []
+      for (let m = naarMinuten(begin); m + SLOT_DUUR_MINUTEN <= naarMinuten(einde); m += SLOT_DUUR_MINUTEN) {
+        const interval = { start: m, eind: m + SLOT_DUUR_MINUTEN }
+        const start = vanMinuten(m)
+        if (!isToekomstig(d, start) || overlapt(interval, opDag)) {
+          overgeslagen++
+          continue
+        }
+        opDag.push(interval)
+        nieuw.push({
+          date: d,
+          start_time: `${start}:00`,
+          end_time: `${vanMinuten(m + SLOT_DUUR_MINUTEN)}:00`,
+          status: 'available',
+        })
+      }
+      bestaand.set(d, opDag)
+    }
+
+    if (nieuw.length > 400) {
+      return { success: false, error: 'Dat zijn te veel tijdsloten in één keer. Kies een kortere periode.' }
+    }
+    if (nieuw.length > 0) {
+      const { error } = await supabase.from('availability').insert(nieuw)
+      if (error) throw error
+    }
+
+    revalidatePath('/admin')
+    return { success: true, aangemaakt: nieuw.length, overgeslagen }
   } catch (error) {
     return { success: false, error: foutmelding(error) }
   }
@@ -358,6 +575,29 @@ export async function deleteAvailability(id: string) {
   }
 }
 
+// Openbaar: de dagen (komende 6 maanden) waarop nog minstens één tijdslot vrij is.
+export async function getBeschikbareDagen() {
+  try {
+    const vandaag = vandaagInBelgie()
+    const { data, error } = await supabase
+      .from('availability')
+      .select('date, start_time')
+      .eq('status', 'available')
+      .gte('date', vandaag)
+      .lte('date', plusDagen(vandaag, 183))
+      .order('date', { ascending: true })
+
+    if (error) throw error
+    const dagen = Array.from(
+      new Set((data || []).filter((s) => isToekomstig(s.date, s.start_time)).map((s) => s.date))
+    )
+    return { success: true, data: dagen }
+  } catch (error) {
+    console.error('Fout bij ophalen beschikbare dagen:', error)
+    return { success: false, data: [] as string[], error: 'Kon de beschikbare dagen niet ophalen' }
+  }
+}
+
 // Openbaar: de boekingspagina vraagt hiermee de vrije tijdsloten van één dag op.
 export async function getAvailability(date: string) {
   try {
@@ -372,7 +612,7 @@ export async function getAvailability(date: string) {
       .order('start_time', { ascending: true })
 
     if (error) throw error
-    return { success: true, data }
+    return { success: true, data: (data || []).filter((s) => isToekomstig(s.date, s.start_time)) }
   } catch (error) {
     console.error('Fout bij ophalen beschikbaarheid:', error)
     return { success: false, error: 'Kon de beschikbare tijden niet ophalen' }

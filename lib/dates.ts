@@ -58,3 +58,44 @@ export function eenUurLater(tijd: string) {
   if (uren >= 23) return null
   return `${(uren + 1).toString().padStart(2, '0')}:${minuten.toString().padStart(2, '0')}:00`
 }
+
+// Huidig uur in België, als "UU:MM".
+export function nuTijdInBelgie() {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: TIJDZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(new Date())
+}
+
+// Ligt dit tijdslot nog in de toekomst (Belgische tijd)?
+export function isToekomstig(datum: string, starttijd: string) {
+  const vandaag = vandaagInBelgie()
+  if (datum > vandaag) return true
+  if (datum < vandaag) return false
+  return starttijd.slice(0, 5) > nuTijdInBelgie()
+}
+
+// "2026-10-14" + n dagen
+export function plusDagen(datum: string, dagen: number) {
+  const d = new Date(`${datum}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + dagen)
+  return d.toISOString().slice(0, 10)
+}
+
+// 0 = zondag, 1 = maandag, ... 6 = zaterdag
+export function weekdag(datum: string) {
+  return new Date(`${datum}T12:00:00Z`).getUTCDay()
+}
+
+// "14:30" -> 870
+export function naarMinuten(tijd: string) {
+  const [u, m] = tijd.split(':').map(Number)
+  return u * 60 + m
+}
+
+// 870 -> "14:30"
+export function vanMinuten(minuten: number) {
+  return `${Math.floor(minuten / 60).toString().padStart(2, '0')}:${(minuten % 60).toString().padStart(2, '0')}`
+}

@@ -28,11 +28,19 @@ create table if not exists public.bookings (
   eindtijd         time not null,
   availability_id  uuid references public.availability (id) on delete set null,
   status           text not null default 'pending'
-                   check (status in ('pending', 'approved', 'rejected')),
+                   check (status in ('pending', 'approved', 'rejected', 'cancelled', 'expired')),
+  opmerking          text,
+  privacy_akkoord_op timestamptz,
+  ip_hash            text,
+  calendar_event_id  text,
   created_at       timestamptz not null default now()
 );
 
 create index if not exists bookings_status_idx on public.bookings (status, created_at desc);
+create index if not exists bookings_email_status_idx on public.bookings (email_klant, status);
+create index if not exists bookings_ip_created_idx on public.bookings (ip_hash, created_at);
+create index if not exists bookings_datum_idx on public.bookings (datum, starttijd);
+create index if not exists availability_status_date_idx on public.availability (status, date);
 
 -- Row Level Security aan, zonder openbare regels:
 -- alleen de website (met de service-role-sleutel) kan de tabellen lezen en aanpassen.
