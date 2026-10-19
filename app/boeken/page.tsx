@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { nl } from 'date-fns/locale'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -172,7 +171,6 @@ export default function BoekenPagina() {
                     <div className="border border-stone-200 rounded-md p-2 w-fit">
                       <Calendar
                         mode="single"
-                        locale={nl}
                         selected={datum}
                         onSelect={handleDateSelect}
                         defaultMonth={naarDate(vrijeDagen[0])}
