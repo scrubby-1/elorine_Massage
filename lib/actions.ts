@@ -1,10 +1,25 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { headers } from 'next/headers'
 import { supabase } from '@/lib/supabase'
 import { sendMail } from './mail'
 import { createCalendarEvent } from './calendar'
-import { controleerWachtwoord, isAdmin, startSessie, stopSessie, vereisAdmin } from './auth'
+import {
+  adminEmail,
+  claimResetToken,
+  controleerWachtwoord,
+  geefResetTokenVrij,
+  isAdmin,
+  isResetTokenGeldig,
+  maakAlleResetTokensOngeldig,
+  maakResetToken,
+  MIN_WACHTWOORD_LENGTE,
+  startSessie,
+  stopSessie,
+  vereisAdmin,
+  zetNieuwWachtwoord,
+} from './auth'
 import {
   eenUurLater,
   formatDatumNL,
@@ -32,7 +47,7 @@ function escapeHtml(tekst: string) {
 // ==========================================
 
 export async function login(wachtwoord: string) {
-  if (typeof wachtwoord === 'string' && controleerWachtwoord(wachtwoord)) {
+  if (typeof wachtwoord === 'string' && (await controleerWachtwoord(wachtwoord))) {
     await startSessie()
     return { success: true }
   }
@@ -48,6 +63,101 @@ export async function logout() {
 
 export async function checkLogin() {
   return { loggedIn: await isAdmin() }
+}
+
+// ==========================================
+// WACHTWOORD VERGETEN
+// ==========================================
+
+// Het adres van de website, voor de link in de herstelmail.
+async function websiteAdres() {
+  const vast = process.env.SITE_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL
+  if (vast) return (vast.startsWith('http') ? vast : `https://${vast}`).replace(/\/$/, '')
+  // Alleen bij lokaal testen: adres uit het verzoek halen.
+  const h = await headers()
+  const host = h.get('host') || 'localhost:3000'
+  const protocol = host.startsWith('localhost') || host.startsWith('127.') ? 'http' : 'https'
+  return `${protocol}://${host}`
+}
+
+// Verstuurt een herstellink naar het vaste beheerders-e-mailadres.
+// Bewust geen invoerveld voor een e-mailadres: zo kan niemand anders een link krijgen.
+export async function vraagWachtwoordHerstel() {
+  const algemeen =
+    'Als alles juist is ingesteld, ontvang je binnen enkele minuten een e-mail met een link om een nieuw wachtwoord te kiezen. Kijk ook in je spam.'
+
+  const naar = adminEmail()
+  if (!naar || !process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+    console.error('Wachtwoordherstel: ADMIN_EMAIL/GMAIL_USER of GMAIL_APP_PASSWORD ontbreekt')
+    return {
+      success: false,
+      error: 'Wachtwoord herstellen via e-mail is nog niet ingesteld. Vraag de beheerder van de website om hulp.',
+    }
+  }
+
+  try {
+    const reset = await maakResetToken()
+    if (!reset) {
+      // Net al een mail verstuurd: geen nieuwe sturen, wel hetzelfde antwoord geven.
+      return { success: true, message: algemeen }
+    }
+
+    const link = `${await websiteAdres()}/admin/herstel?token=${reset.token}`
+    const resultaat = await sendMail({
+      to: naar,
+      subject: 'Nieuw wachtwoord instellen – Elorine Massage',
+      text: `Hallo,\n\nEr is gevraagd om het wachtwoord van het beheer van Elorine Massage opnieuw in te stellen.\n\nKies een nieuw wachtwoord via deze link (${reset.geldigMinuten} minuten geldig, één keer te gebruiken):\n${link}\n\nHeb je dit niet zelf gevraagd? Dan mag je deze e-mail negeren; je wachtwoord blijft hetzelfde.\n\nElorine Massage`,
+      html: `<p>Hallo,</p><p>Er is gevraagd om het wachtwoord van het beheer van Elorine Massage opnieuw in te stellen.</p><p><a href="${link}" style="display:inline-block;background:#059669;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none">Nieuw wachtwoord kiezen</a></p><p style="color:#57534e;font-size:14px">De link is ${reset.geldigMinuten} minuten geldig en werkt maar één keer.<br />Heb je dit niet zelf gevraagd? Dan mag je deze e-mail negeren; je wachtwoord blijft hetzelfde.</p><p>Elorine Massage</p>`,
+    })
+    if (!resultaat.success) {
+      return { success: false, error: 'De e-mail kon niet verstuurd worden. Probeer het later opnieuw.' }
+    }
+    return { success: true, message: algemeen }
+  } catch (error) {
+    console.error('Fout bij wachtwoordherstel:', error)
+    return { success: false, error: 'Er is iets misgegaan. Probeer het later opnieuw.' }
+  }
+}
+
+export async function controleerHerstelLink(token: string) {
+  try {
+    return { geldig: typeof token === 'string' && (await isResetTokenGeldig(token)) }
+  } catch {
+    return { geldig: false }
+  }
+}
+
+export async function stelNieuwWachtwoordIn(token: string, nieuw: string, herhaling: string) {
+  if (typeof nieuw !== 'string' || nieuw.length < MIN_WACHTWOORD_LENGTE) {
+    return { success: false, error: `Kies een wachtwoord van minstens ${MIN_WACHTWOORD_LENGTE} tekens.` }
+  }
+  if (nieuw.length > 200) {
+    return { success: false, error: 'Dit wachtwoord is te lang.' }
+  }
+  if (nieuw !== herhaling) {
+    return { success: false, error: 'De twee wachtwoorden zijn niet gelijk.' }
+  }
+
+  const tokenId = await claimResetToken(token)
+  if (!tokenId) {
+    return {
+      success: false,
+      error: 'Deze link is verlopen of al gebruikt. Vraag een nieuwe link aan via "Wachtwoord vergeten".',
+    }
+  }
+
+  try {
+    await zetNieuwWachtwoord(nieuw)
+  } catch (error) {
+    await geefResetTokenVrij(tokenId)
+    console.error('Fout bij opslaan nieuw wachtwoord:', error)
+    return { success: false, error: 'Het nieuwe wachtwoord kon niet opgeslagen worden. Probeer opnieuw.' }
+  }
+
+  await maakAlleResetTokensOngeldig()
+  // Oude sessies zijn nu ongeldig; meteen een nieuwe starten.
+  await startSessie()
+  return { success: true }
 }
 
 // ==========================================
