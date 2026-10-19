@@ -7,7 +7,8 @@ Volg deze stappen één keer. Daarna werkt de site met boekingen, het beheer, ma
 1. Maak een gratis account op [supabase.com](https://supabase.com) en klik op **New project**.
    Kies als regio **West EU (Ireland)** of **Central EU (Frankfurt)**.
 2. Open **SQL Editor → New query**, plak de inhoud van `supabase/schema.sql` en klik op **Run**.
-   Had je `schema.sql` al eerder uitgevoerd? Voer dan alleen `supabase/wachtwoord-vergeten.sql` uit.
+   Had je `schema.sql` al eerder uitgevoerd? Voer dan `supabase/wachtwoord-vergeten.sql` en
+   `supabase/boekingsflow.sql` uit (beide zijn veilig om opnieuw uit te voeren).
 3. Ga naar **Project Settings → API** en noteer:
    - **Project URL** → wordt `SUPABASE_URL`
    - **service_role**-sleutel (onder "Project API keys", klik op "Reveal") → wordt `SUPABASE_SERVICE_ROLE_KEY`

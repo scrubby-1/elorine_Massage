@@ -227,7 +227,10 @@ export default function Home() {
             </div>
           </div>
           <div className="mt-12 pt-8 border-t border-stone-700 text-center text-stone-500">
-            © {new Date().getFullYear()} Elorine. Alle rechten voorbehouden.
+            © {new Date().getFullYear()} Elorine. Alle rechten voorbehouden. ·{' '}
+            <Link href="/privacy" className="hover:text-stone-300 underline">
+              Privacyverklaring
+            </Link>
           </div>
         </div>
       </footer>
