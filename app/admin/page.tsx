@@ -17,6 +17,7 @@ import {
   login,
   logout,
   checkLogin,
+  vraagWachtwoordHerstel,
 } from '@/lib/actions'
 import { formatDatumNL, formatTijd } from '@/lib/dates'
 
@@ -67,6 +68,10 @@ export default function AdminPagina() {
   const [checking, setChecking] = useState(true)
   const [loggingIn, setLoggingIn] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [vergetenOpen, setVergetenOpen] = useState(false)
+  const [herstelBezig, setHerstelBezig] = useState(false)
+  const [herstelMelding, setHerstelMelding] = useState<string | null>(null)
+  const [herstelFout, setHerstelFout] = useState<string | null>(null)
 
   useEffect(() => {
     checkLogin().then(({ loggedIn }) => {
@@ -114,6 +119,19 @@ export default function AdminPagina() {
       fetchData()
     } else {
       setError(res.error || 'Onjuist wachtwoord')
+    }
+  }
+
+  async function handleWachtwoordVergeten() {
+    setHerstelBezig(true)
+    setHerstelFout(null)
+    setHerstelMelding(null)
+    const res = await vraagWachtwoordHerstel()
+    setHerstelBezig(false)
+    if (res.success) {
+      setHerstelMelding(res.message || 'Controleer je e-mail.')
+    } else {
+      setHerstelFout(res.error || 'Er is iets misgegaan.')
     }
   }
 
@@ -191,6 +209,48 @@ export default function AdminPagina() {
                 {loggingIn ? 'Bezig...' : 'Inloggen'}
               </Button>
             </form>
+
+            <div className="mt-6 border-t border-stone-200 pt-4">
+              {!vergetenOpen ? (
+                <button
+                  type="button"
+                  onClick={() => setVergetenOpen(true)}
+                  className="text-sm text-emerald-700 hover:underline"
+                >
+                  Wachtwoord vergeten?
+                </button>
+              ) : herstelMelding ? (
+                <div className="rounded-md bg-emerald-50 p-3 text-sm text-emerald-800">{herstelMelding}</div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm text-stone-600">
+                    We sturen een link naar het e-mailadres van de beheerder. Met die link kies je een nieuw
+                    wachtwoord.
+                  </p>
+                  {herstelFout && <div className="text-sm text-red-600">{herstelFout}</div>}
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      onClick={handleWachtwoordVergeten}
+                      disabled={herstelBezig}
+                      className="bg-emerald-600 hover:bg-emerald-700"
+                    >
+                      {herstelBezig ? 'Bezig...' : 'Stuur herstellink'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setVergetenOpen(false)
+                        setHerstelFout(null)
+                      }}
+                    >
+                      Annuleren
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
