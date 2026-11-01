@@ -1,7 +1,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 
 export default function Home() {
   return (
@@ -62,31 +62,33 @@ export default function Home() {
             <h2 className="font-serif text-3xl text-stone-800 md:text-4xl">Ontspanningsmassage</h2>
           </div>
 
-          <Card className="mx-auto max-w-2xl border-stone-200 bg-stone-50">
-            <CardHeader>
-              <div className="h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
-                <svg className="h-6 w-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                </svg>
-              </div>
-              <CardTitle className="font-serif text-2xl text-stone-800">Ontspanningsmassage</CardTitle>
-              <CardDescription className="text-stone-600">
-                Een heerlijk moment helemaal voor jezelf.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-stone-600 leading-relaxed mb-6">
-                Laat de dagelijkse drukte even achter je en geniet van een rustgevende lichaamsmassage. Met
-                zachte, vloeiende bewegingen help ik je om spanning los te laten, je hoofd tot rust te brengen
-                en helemaal te ontspannen. Even niets moeten, alleen maar genieten.
-              </p>
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-semibold text-emerald-700">€65</span>
-                  <span className="text-stone-500">/ uur</span>
+          <Card className="border-stone-200 bg-stone-50">
+            <CardContent className="grid gap-8 p-8 md:grid-cols-3 md:p-10">
+              <div className="md:col-span-2">
+                <div className="h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
+                  <svg className="h-6 w-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                  </svg>
                 </div>
-                <Link href="/boeken">
-                  <Button className="bg-emerald-600 hover:bg-emerald-700 text-white">Maak een afspraak</Button>
+                <CardTitle className="font-serif text-2xl text-stone-800">Ontspanningsmassage</CardTitle>
+                <CardDescription className="mt-2 text-lg text-stone-600">
+                  Een heerlijk moment helemaal voor jezelf.
+                </CardDescription>
+                <p className="mt-4 text-lg text-stone-600 leading-relaxed">
+                  Laat de dagelijkse drukte even achter je en geniet van een rustgevende lichaamsmassage. Met
+                  zachte, vloeiende bewegingen help ik je om spanning los te laten, je hoofd tot rust te brengen
+                  en helemaal te ontspannen. Even niets moeten, alleen maar genieten.
+                </p>
+              </div>
+              <div className="flex flex-col items-start justify-center gap-4 rounded-xl bg-white p-6 md:items-center md:text-center">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-4xl font-semibold text-emerald-700">€65</span>
+                  <span className="text-lg text-stone-500">/ uur</span>
+                </div>
+                <Link href="/boeken" className="w-full">
+                  <Button size="lg" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white">
+                    Maak een afspraak
+                  </Button>
                 </Link>
               </div>
             </CardContent>
@@ -118,11 +120,14 @@ export default function Home() {
               </p>
             </div>
             <div className="relative">
-              <div className="aspect-square rounded-2xl bg-gradient-to-br from-emerald-200 to-stone-200 flex items-center justify-center">
-                <div className="h-48 w-48 rounded-full bg-white/50 backdrop-blur-sm flex items-center justify-center">
-                  <span className="text-6xl text-emerald-600">🌿</span>
-                </div>
-              </div>
+              <Image
+                src="/massage.jpg"
+                alt="Ontspannende rugmassage"
+                width={1600}
+                height={1066}
+                sizes="(min-width: 768px) 50vw, 100vw"
+                className="aspect-[4/5] w-full rounded-2xl object-cover object-[65%_center] shadow-lg md:aspect-square"
+              />
             </div>
           </div>
         </div>
@@ -160,9 +165,12 @@ export default function Home() {
             <div>
               <h4 className="font-semibold text-white mb-4">Contact</h4>
               <div className="space-y-2 text-stone-400">
-                <p>info@elorine.nl</p>
-                <p>06-12345678</p>
-                <p>Kerkstraat 123<br />1234 AB Amsterdam</p>
+                <p>
+                  <a href="mailto:tineke@elorine.net" className="hover:text-white transition-colors">
+                    tineke@elorine.net
+                  </a>
+                </p>
+                <p>Vogelsberg 4<br />2490 Balen</p>
               </div>
             </div>
             <div>
