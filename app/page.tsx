@@ -33,11 +33,11 @@ export default function Home() {
         <div className="relative mx-auto max-w-6xl px-6 py-24 md:py-32">
           <div className="max-w-3xl">
             <h1 className="font-serif text-4xl leading-tight text-stone-800 md:text-5xl lg:text-6xl">
-              Laat je lichaam en geest tot rust komen
+              Minder moeten. Meer genieten.
             </h1>
             <p className="mt-6 text-lg text-stone-600 md:text-xl">
-              Ervaar diepe ontspanning met onze professionele massagebehandelingen. 
-              In een warme, rustige omgeving help ik je om balans te vinden.
+              In de drukte van elke dag is het soms heerlijk om even op pauze te drukken. Om los te laten wat
+              moet, je hoofd tot rust te brengen en gewoon te genieten van een moment voor jezelf.
             </p>
             <div className="mt-10 flex flex-col gap-4 sm:flex-row">
               <Link href="/boeken">
@@ -45,100 +45,52 @@ export default function Home() {
                   Maak een afspraak
                 </Button>
               </Link>
-              <Button variant="outline" size="lg" className="border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-lg px-8">
-                Meer informatie
-              </Button>
+              <a href="#diensten">
+                <Button variant="outline" size="lg" className="border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-lg px-8">
+                  Meer informatie
+                </Button>
+              </a>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Massage Services Section */}
+      {/* Massage */}
       <section id="diensten" className="bg-white py-24">
         <div className="mx-auto max-w-6xl px-6">
-          <div className="text-center mb-16">
-            <h2 className="font-serif text-3xl text-stone-800 md:text-4xl">Massage Diensten</h2>
-            <p className="mt-4 text-stone-600 max-w-2xl mx-auto">
-              Kies uit onze selectie van massagebehandelingen, elk ontworpen om je te helpen ontspannen en herstellen.
-            </p>
+          <div className="text-center mb-12">
+            <h2 className="font-serif text-3xl text-stone-800 md:text-4xl">Ontspanningsmassage</h2>
           </div>
-          
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-            {/* Ontspanningsmassage */}
-            <Card className="border-stone-200 bg-stone-50 hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
-                  <svg className="h-6 w-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                  </svg>
-                </div>
-                <CardTitle className="font-serif text-2xl text-stone-800">Ontspanningsmassage</CardTitle>
-                <CardDescription className="text-stone-600">
-                  Volledige lichaamsmassage gericht op diepe ontspanning
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-stone-600 mb-4">
-                  Een rustgevende massage die spanning in spieren verzacht en stress wegneemt. 
-                  Perfect voor wie op zoek is naar innerlijke rust en welzijn.
-                </p>
+
+          <Card className="mx-auto max-w-2xl border-stone-200 bg-stone-50">
+            <CardHeader>
+              <div className="h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
+                <svg className="h-6 w-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+              </div>
+              <CardTitle className="font-serif text-2xl text-stone-800">Ontspanningsmassage</CardTitle>
+              <CardDescription className="text-stone-600">
+                Een heerlijk moment helemaal voor jezelf.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-stone-600 leading-relaxed mb-6">
+                Laat de dagelijkse drukte even achter je en geniet van een rustgevende lichaamsmassage. Met
+                zachte, vloeiende bewegingen help ik je om spanning los te laten, je hoofd tot rust te brengen
+                en helemaal te ontspannen. Even niets moeten, alleen maar genieten.
+              </p>
+              <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-baseline gap-2">
                   <span className="text-2xl font-semibold text-emerald-700">€65</span>
-                  <span className="text-stone-500">/ 60 minuten</span>
+                  <span className="text-stone-500">/ uur</span>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Sportmassage */}
-            <Card className="border-stone-200 bg-stone-50 hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center mb-4">
-                  <svg className="h-6 w-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                </div>
-                <CardTitle className="font-serif text-2xl text-stone-800">Sportmassage</CardTitle>
-                <CardDescription className="text-stone-600">
-                  Intensieve massage voor sporters en actieve mensen
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-stone-600 mb-4">
-                  Gericht op het behandelen van sportblessures, het verbeteren van flexibiliteit 
-                  en het versnellen van herstel na intensieve trainingen.
-                </p>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-semibold text-emerald-700">€75</span>
-                  <span className="text-stone-500">/ 60 minuten</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Hot Stone Massage */}
-            <Card className="border-stone-200 bg-stone-50 hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="h-12 w-12 rounded-full bg-stone-200 flex items-center justify-center mb-4">
-                  <svg className="h-6 w-6 text-stone-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
-                  </svg>
-                </div>
-                <CardTitle className="font-serif text-2xl text-stone-800">Hot Stone Massage</CardTitle>
-                <CardDescription className="text-stone-600">
-                  Verwarmde stenen voor diepe spierontspanning
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-stone-600 mb-4">
-                  Verwarmde basaltstenen worden gebruikt om diep in de spieren door te dringen 
-                  en een uitzonderlijke ontspanning te bereiken.
-                </p>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-semibold text-emerald-700">€85</span>
-                  <span className="text-stone-500">/ 75 minuten</span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                <Link href="/boeken">
+                  <Button className="bg-emerald-600 hover:bg-emerald-700 text-white">Maak een afspraak</Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </section>
 
@@ -148,25 +100,22 @@ export default function Home() {
           <div className="grid gap-12 md:grid-cols-2 items-center">
             <div>
               <h2 className="font-serif text-3xl text-stone-800 md:text-4xl">Over mij</h2>
+              <p className="mt-6 font-serif text-xl text-stone-800 md:text-2xl">
+                Kleine momenten van rust kunnen een groot verschil maken.
+              </p>
               <p className="mt-6 text-lg text-stone-600 leading-relaxed">
-                Al meer dan 10 jaar help ik mensen om te ontspannen en hun lichaam te verzorgen. 
-                Met een combinatie van traditionele en moderne massagetechnieken creëer ik een 
-                behandeling die precies aansluit bij jouw behoeften.
+                In het dagelijkse leven zijn we vaak druk bezig en proberen we heel wat ballen tegelijk in de
+                lucht te houden. Net daarom is het belangrijk om af en toe even op de pauzeknop te drukken. Om
+                stil te staan, los te laten en gewoon te genieten.
               </p>
               <p className="mt-4 text-lg text-stone-600 leading-relaxed">
-                Mijn praktijk is een rustige ruimte waar je even kunt ontsnappen aan de drukte 
-                van het dagelijks leven. Ik geloof dat iedereen verdient om zich goed te voelen.
+                In mijn rustige thuisomgeving in Balen heb ik een plek gecreëerd waar je even mag ontsnappen aan
+                de dagelijkse drukte. Hier krijg je de ruimte om te vertragen, los te laten en gewoon te genieten
+                van een moment voor jezelf.
               </p>
-              <div className="mt-8 flex gap-6">
-                <div>
-                  <div className="text-3xl font-semibold text-emerald-700">500+</div>
-                  <div className="text-stone-500">Tevreden klanten</div>
-                </div>
-                <div>
-                  <div className="text-3xl font-semibold text-emerald-700">10+</div>
-                  <div className="text-stone-500">Jaar ervaring</div>
-                </div>
-              </div>
+              <p className="mt-4 text-lg text-stone-700 leading-relaxed italic">
+                Want soms is even niets moeten precies wat je nodig hebt.
+              </p>
             </div>
             <div className="relative">
               <div className="aspect-square rounded-2xl bg-gradient-to-br from-emerald-200 to-stone-200 flex items-center justify-center">
@@ -186,8 +135,7 @@ export default function Home() {
             Klaar om te ontspannen?
           </h2>
           <p className="mt-4 text-lg text-emerald-100 max-w-2xl mx-auto">
-            Boek nu je massage en geef je lichaam de rust die het verdient. 
-            Ik kijk ernaar uit om je te verwelkomen.
+            Boek nu je massage en geef jezelf de rust die je verdient.
           </p>
           <Link href="/boeken">
             <Button size="lg" className="mt-10 bg-white text-emerald-700 hover:bg-emerald-50 text-lg px-10">
@@ -220,9 +168,7 @@ export default function Home() {
             <div>
               <h4 className="font-semibold text-white mb-4">Openingstijden</h4>
               <div className="space-y-2 text-stone-400">
-                <p>Ma - Vr: 09:00 - 18:00</p>
-                <p>Za: 10:00 - 17:00</p>
-                <p>Zo: Gesloten</p>
+                <p>Op afspraak</p>
               </div>
             </div>
           </div>
