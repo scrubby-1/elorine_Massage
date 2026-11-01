@@ -165,8 +165,11 @@ export default function Home() {
             <div>
               <h4 className="font-semibold text-white mb-4">Contact</h4>
               <div className="space-y-2 text-stone-400">
-                <p>info@elorine.nl</p>
-                <p>06-12345678</p>
+                <p>
+                  <a href="mailto:tineke@elorine.net" className="hover:text-white transition-colors">
+                    tineke@elorine.net
+                  </a>
+                </p>
                 <p>Vogelsberg 4<br />2490 Balen</p>
               </div>
             </div>
