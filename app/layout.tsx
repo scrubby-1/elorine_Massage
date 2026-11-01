@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Elorine Massage",
-  description: "Professionele massagebehandelingen in een rustige, warme omgeving. Boek eenvoudig online je afspraak.",
+  description: "Minder moeten. Meer genieten. Ontspanningsmassage in een rustige thuisomgeving in Balen. Boek eenvoudig online je afspraak.",
 };
 
 export default function RootLayout({
