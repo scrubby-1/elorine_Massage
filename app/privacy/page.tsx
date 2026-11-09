@@ -21,7 +21,11 @@ export default function PrivacyPagina() {
             <h2 className="text-lg font-semibold text-stone-800">Wie verwerkt je gegevens?</h2>
             <p>
               Elorine Massage is verantwoordelijk voor de verwerking van de persoonsgegevens die je via deze website
-              doorgeeft. Contactgegevens vind je onderaan elke pagina van deze website.
+              doorgeeft: Elorine Massage, Vogelsberg 4, 2490 Balen,{' '}
+              <a href="mailto:tineke@elorine.net" className="text-emerald-700 underline">
+                tineke@elorine.net
+              </a>
+              .
             </p>
           </section>
 
@@ -66,7 +70,7 @@ export default function PrivacyPagina() {
             <h2 className="text-lg font-semibold text-stone-800">Je rechten</h2>
             <p>
               Je mag je gegevens altijd inkijken, laten verbeteren of laten verwijderen, en je toestemming intrekken.
-              Neem daarvoor contact op via de contactgegevens op deze website. Ben je niet tevreden over hoe we met
+              Stuur daarvoor een e-mail naar tineke@elorine.net. Ben je niet tevreden over hoe we met
               je gegevens omgaan, dan kun je een klacht indienen bij de Gegevensbeschermingsautoriteit
               (www.gegevensbeschermingsautoriteit.be).
             </p>
